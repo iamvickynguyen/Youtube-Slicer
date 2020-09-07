@@ -1,14 +1,17 @@
 from pytube import YouTube
 import re
 import math
+import subprocess
 from subprocess import check_call, PIPE, Popen
 import shlex
-re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
 
-def downloader(url, filename = None):
+def get_video(url):
     yt = YouTube(url)
-    video = yt.streams.filter(res='720p', type='video', subtype='mp4') or yt.streams.filter(res='1080p', type='video', subtype='mp4')
-    video[0].download(filename = filename)
+    video = yt.streams.filter(res='1080p', type='video', subtype='mp4', fps=30, progressive=True) or yt.streams.filter(res='720p', type='video', subtype='mp4', fps=30, progressive=True)
+    if len(video) == 0:
+        print("Choose another video!")
+        return None
+    return video[0]
 
 # https://yohanes.gultom.id/2020/04/03/splitting-video-with-ffmpeg-and-python/
 def get_metadata(filename):
@@ -17,7 +20,10 @@ def get_metadata(filename):
     '''
     p1 = Popen(["ffmpeg", "-hide_banner", "-i", filename], stderr=PIPE, universal_newlines=True)
     output = p1.communicate()[1]
+
+    re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
     matches = re_metadata.search(output)
+
     if matches:
         video_length = int(matches.group(1)) * 3600 + int(matches.group(2)) * 60 + int(matches.group(3))
         video_fps = float(matches.group(4))
@@ -54,5 +60,24 @@ def split_segment(filename, n, by='size'):
     # return list of output (index start from 0)
     return ['{}-{}.{}'.format(pth, i, ext) for i in range(split_count)]
 
-video = downloader('https://youtu.be/nsZObkD1dog', 'test')
-l = split_segment("test.mp4", 60)
+def get_video_info(filename):
+
+    # size
+    cmd = 'ffprobe -i {} -show_entries format=size -v quiet'.format(filename)
+    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+    output = str(proc.stdout.read()).split('\\n')
+    size = int(list(filter(lambda x: x.startswith('size='), output))[0][len('size='):]) / (10**6)
+
+    # width x height
+    cmd = 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 {}'.format(filename)
+    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+    dimensions = str(proc.stdout.read().decode('ascii')).strip().split('x')
+
+    return {'size': size, 'width': int(dimensions[0]), 'height': int(dimensions[1])}
+
+# video = get_video('https://youtu.be/kUF-RevdZTs')
+# video = get_video('https://youtu.be/nsZObkD1dog')
+# if video:
+#     video.download(filename = 'test')
+#     split_segment('test.mp4', 60)
+print(get_video_info('test.mp4'))
