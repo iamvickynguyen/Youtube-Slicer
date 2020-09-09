@@ -5,7 +5,7 @@ import shlex
 from pytube import YouTube
 from subprocess import check_call, PIPE, Popen
 
-def download_video(url, filename = 'blank'):
+def download_video(url, filename = 'in', outfile_name = 'out'):
     yt = YouTube(url)
     video = yt.streams.filter(res='1080p', type='video', subtype='mp4', fps=30, progressive=True) \
         or yt.streams.filter(res='720p', type='video', subtype='mp4', fps=30, progressive=True) \
@@ -17,6 +17,7 @@ def download_video(url, filename = 'blank'):
         return None
 
     video[0].download(filename = filename)
+    compress_and_scale(filename + '.mp4', outfile_name + '.mp4')
 
     return 1
 
@@ -67,33 +68,12 @@ def split_segment(filename, n, by='size'):
     # return the number of videos
     return split_count
 
-def get_video_info(filename):
-
-    # size (MB in decimal), bitrate
-    cmd = 'ffprobe -i {} -show_entries format=size,bit_rate -v quiet'.format(filename)
-    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
-    output = str(proc.stdout.read()).split('\\n')
-    size = int(list(filter(lambda x: x.startswith('size='), output))[0][len('size='):]) / (10**6)
-    bitrate = int(list(filter(lambda x: x.startswith('bit_rate='), output))[0][len('bit_rate='):]) // (10**3)
-
-    # width x height
-    cmd = 'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 {}'.format(filename)
-    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
-    dimensions = str(proc.stdout.read().decode('ascii')).strip().split('x')
-
-    # return size, bitrate, width, height
-    return size, bitrate, int(dimensions[0]), int(dimensions[1])
-
 def compress_and_scale(filename, outfile_name):
+    print('here')
     subprocess.run(["ffmpeg" ,"-i", filename,"-filter:v" ,"scale=1080:1350:force_original_aspect_ratio=decrease,pad=1080:1350:(ow-iw)/2:(oh-ih)/2", "-b", "400k", outfile_name])
     subprocess.Popen(['rm', filename])
 
 # test
-video = download_video('https://youtu.be/nsZObkD1dog', 'test')
+video = download_video('https://youtu.be/nsZObkD1dog')
 if video:
-    split_count = split_segment('test.mp4', 30)
-    for i in range(split_count):
-        compress_and_scale('test-{}.mp4'.format(i), 'out-{}.mp4'.format(i))
-
-        # size, bitrate, width, height = get_video_info('out-{}.mp4'.format(i))
-        # print(size, bitrate, width, height)
+    split_segment('out.mp4', 30)
