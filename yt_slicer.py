@@ -84,26 +84,16 @@ def get_video_info(filename):
     # return size, bitrate, width, height
     return size, bitrate, int(dimensions[0]), int(dimensions[1])
 
-# FIXME
-def compress(filename, bitrate):
-    tmp_name = filename[: -len('.mp4')] + 'tmp.mp4'
-    rename_cmd = 'mv {} {}'.format(filename, tmp_name)
-    subprocess.Popen(rename_cmd.split(), stdout=subprocess.PIPE)
-
-    compress_cmd = 'ffmpeg -i {} -b {} {}'.format(tmp_name, bitrate, filename)
-    subprocess.Popen(compress_cmd.split(), stdout=subprocess.PIPE)
-
-    subprocess.Popen(['rm', tmp_name])
+def compress_and_scale(filename, outfile_name):
+    subprocess.run(["ffmpeg" ,"-i", filename,"-filter:v" ,"scale=1080:1350:force_original_aspect_ratio=decrease,pad=1080:1350:(ow-iw)/2:(oh-ih)/2", "-b", "400k", outfile_name])
+    subprocess.Popen(['rm', filename])
 
 # test
 video = download_video('https://youtu.be/nsZObkD1dog', 'test')
 if video:
     split_count = split_segment('test.mp4', 30)
     for i in range(split_count):
-        size, bitrate, width, height = get_video_info('test-{}.mp4'.format(i))
-        # print(size, bitrate, width, height)
+        compress_and_scale('test-{}.mp4'.format(i), 'out-{}.mp4'.format(i))
 
-        # NOTE: not sure how to calculate bitrate, so just reduce 100k until size <= 10MB
-        while size > 10:
-            compress('test-{}.mp4'.format(i), str(bitrate - 100) + 'k')
-            size, bitrate, width, height = get_video_info('test-{}.mp4'.format(i))
+        # size, bitrate, width, height = get_video_info('out-{}.mp4'.format(i))
+        # print(size, bitrate, width, height)
