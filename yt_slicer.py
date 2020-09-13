@@ -70,7 +70,7 @@ def split_segment(filename, n, by='size'):
 
 def compress_and_scale(filename, outfile_name):
     print('here')
-    subprocess.run(["ffmpeg" ,"-i", filename,"-filter:v" ,"scale=1080:1350:force_original_aspect_ratio=decrease,pad=1080:1350:(ow-iw)/2:(oh-ih)/2", "-b", "400k", outfile_name])
+    subprocess.run(["ffmpeg" ,"-i", filename,"-filter:v" ,"scale=1080:1350:force_original_aspect_ratio=decrease,pad=1080:1350:(ow-iw)/2:(oh-ih)/2", "-b", "1000k", outfile_name])
     subprocess.Popen(['rm', filename])
 
 # test
